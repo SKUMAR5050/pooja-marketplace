@@ -77,7 +77,10 @@ export default function VendorOrders({ shop }) {
           </div>
           <ul className="text-sm">
             {o.order_items.map((i) => (
-              <li key={i.id}>{i.product_name} × {i.qty} — ₹{i.qty * Number(i.price)}</li>
+              <li key={i.id}>
+                {i.product_name} × {i.qty} — ₹{i.qty * Number(i.price)}
+                {i.note && <div className="text-xs text-gray-500">{i.note}</div>}
+              </li>
             ))}
           </ul>
           <div className="font-semibold">Total: ₹{Number(o.subtotal)}</div>

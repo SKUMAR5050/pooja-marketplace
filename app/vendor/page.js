@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getSupabase, isConfigured } from "@/lib/supabase";
 import VendorOrders from "@/components/VendorOrders";
 import VendorProducts from "@/components/VendorProducts";
+import DemoVendor from "@/components/DemoVendor";
 
 export default function VendorPage() {
   const [session, setSession] = useState(undefined);
@@ -33,8 +34,8 @@ export default function VendorPage() {
       .then(({ data }) => setShop(data));
   }, [session]);
 
+  if (!isConfigured()) return <DemoVendor />;
   if (session === undefined) return <p className="text-gray-500">Loading…</p>;
-  if (!isConfigured()) return <div className="card">Database keys are not added yet.</div>;
   if (!session) return <AuthForm />;
   if (shop === undefined) return <p className="text-gray-500">Loading your shop…</p>;
   if (shop === null) return <ShopSetup userId={session.user.id} onDone={setShop} />;

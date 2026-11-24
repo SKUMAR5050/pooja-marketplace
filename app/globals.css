@@ -3,21 +3,66 @@
 @tailwind utilities;
 
 body {
-  background: #fffaf3;
-  color: #2b1a10;
+  background-color: #fff8ec;
+  background-image: radial-gradient(circle at 1px 1px, rgba(234, 88, 12, 0.08) 1px, transparent 0);
+  background-size: 22px 22px;
+  color: #3a1f10;
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center rounded-lg bg-saffron-600 px-4 py-2 font-semibold text-white transition hover:bg-saffron-700 disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-lg bg-gradient-to-b from-saffron-500 to-saffron-700 px-4 py-2 font-semibold text-white shadow transition hover:brightness-110 disabled:opacity-50;
   }
   .btn-outline {
-    @apply inline-flex items-center justify-center rounded-lg border border-saffron-600 px-4 py-2 font-semibold text-saffron-700 transition hover:bg-saffron-50 disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-lg border-2 border-saffron-600 bg-white px-4 py-2 font-semibold text-saffron-700 transition hover:bg-saffron-50 disabled:opacity-50;
   }
   .input {
-    @apply w-full rounded-lg border border-saffron-200 bg-white px-3 py-2 outline-none focus:border-saffron-600;
+    @apply w-full rounded-lg border border-amber-300 bg-white px-3 py-2 outline-none focus:border-saffron-600 focus:ring-2 focus:ring-saffron-200;
   }
   .card {
-    @apply rounded-xl border border-saffron-100 bg-white p-4 shadow-sm;
+    @apply rounded-2xl border border-amber-200 bg-white p-4 shadow-sm;
   }
+  .title {
+    @apply font-serif font-bold text-maroon;
+  }
+  .gold-text {
+    background: linear-gradient(90deg, #f2c14e, #fff3b0, #f2c14e, #d99a1c);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .chip {
+    @apply rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-sm font-medium text-saffron-700 transition;
+  }
+  .chip-active {
+    @apply border-saffron-600 bg-saffron-600 text-white;
+  }
+}
+
+/* Marigold flower garland strip */
+.garland {
+  height: 16px;
+  background-image: radial-gradient(circle at 10px 8px, #f59e0b 0 5.5px, transparent 6px),
+    radial-gradient(circle at 30px 8px, #ea580c 0 5.5px, transparent 6px),
+    radial-gradient(circle at 10px 8px, #fde68a 0 2px, transparent 2.5px),
+    radial-gradient(circle at 30px 8px, #fcd34d 0 2px, transparent 2.5px);
+  background-size: 40px 16px;
+  background-repeat: repeat-x;
+  background-color: #7a1a1a;
+}
+
+/* Temple-style gold divider */
+.divider-om {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #b8860b;
+}
+.divider-om::before,
+.divider-om::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #d9a21c, transparent);
 }

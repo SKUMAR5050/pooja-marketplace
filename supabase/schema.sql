@@ -22,7 +22,19 @@ create table if not exists products (
   price numeric(10,2) not null check (price >= 0),
   unit text not null default 'piece',
   in_stock boolean not null default true,
+  is_kit boolean not null default false,
+  image_url text,
+  description text,
   created_at timestamptz not null default now()
+);
+
+-- What is inside a kit (shown to customers before they buy)
+create table if not exists kit_items (
+  id uuid primary key default gen_random_uuid(),
+  kit_id uuid not null references products(id) on delete cascade,
+  item_name text not null,
+  qty numeric not null default 1,
+  unit text not null default 'pc'
 );
 
 create table if not exists orders (
@@ -43,7 +55,8 @@ create table if not exists order_items (
   order_id uuid not null references orders(id) on delete cascade,
   product_name text not null,
   price numeric(10,2) not null,
-  qty int not null check (qty > 0)
+  qty int not null check (qty > 0),
+  note text
 );
 
 -- ---------- SECURITY (Row Level Security) ----------
@@ -51,6 +64,7 @@ alter table shops enable row level security;
 alter table products enable row level security;
 alter table orders enable row level security;
 alter table order_items enable row level security;
+alter table kit_items enable row level security;
 
 -- Shops: everyone can see active shops; owner manages own shop
 drop policy if exists "shops public read" on shops;
@@ -67,6 +81,14 @@ drop policy if exists "products owner write" on products;
 create policy "products owner write" on products for all
   using (exists (select 1 from shops s where s.id = shop_id and s.owner_id = auth.uid()))
   with check (exists (select 1 from shops s where s.id = shop_id and s.owner_id = auth.uid()));
+
+-- Kit contents: everyone can read; owner of the shop manages
+drop policy if exists "kit_items public read" on kit_items;
+create policy "kit_items public read" on kit_items for select using (true);
+drop policy if exists "kit_items owner write" on kit_items;
+create policy "kit_items owner write" on kit_items for all
+  using (exists (select 1 from products p join shops s on s.id = p.shop_id where p.id = kit_id and s.owner_id = auth.uid()))
+  with check (exists (select 1 from products p join shops s on s.id = p.shop_id where p.id = kit_id and s.owner_id = auth.uid()));
 
 -- Orders: only the shop owner can read / update. Customers place orders via place_order() below.
 drop policy if exists "orders owner read" on orders;
@@ -149,8 +171,18 @@ begin
 
   for v_item in select * from jsonb_array_elements(p_items) loop
     select * into v_prod from products where id = (v_item->>'product_id')::uuid;
-    insert into order_items (order_id, product_name, price, qty)
-    values (v_order_id, v_prod.name, v_prod.price, (v_item->>'qty')::int);
+    insert into order_items (order_id, product_name, price, qty, note)
+    values (
+      v_order_id, v_prod.name, v_prod.price, (v_item->>'qty')::int,
+      case
+        when v_prod.is_kit then (
+          select 'Includes: ' || string_agg(k.item_name || ' x' || k.qty || ' ' || k.unit, ', ')
+          from kit_items k where k.kit_id = v_prod.id
+        )
+        when coalesce((v_item->>'extra')::boolean, false) then 'Extra with kit'
+        else null
+      end
+    );
   end loop;
 
   return v_code;
@@ -173,7 +205,7 @@ as $$
     'shop_address', s.address,
     'shop_phone', s.phone,
     'items', coalesce((
-      select jsonb_agg(jsonb_build_object('name', i.product_name, 'price', i.price, 'qty', i.qty))
+      select jsonb_agg(jsonb_build_object('name', i.product_name, 'price', i.price, 'qty', i.qty, 'note', i.note))
       from order_items i where i.order_id = o.id
     ), '[]'::jsonb)
   )
