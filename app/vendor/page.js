@@ -119,7 +119,7 @@ function AuthForm() {
 }
 
 function ShopSetup({ userId, onDone }) {
-  const [f, setF] = useState({ name: "", area: "", phone: "", address: "" });
+  const [f, setF] = useState({ name: "", area: "", pincode: "", phone: "", address: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -144,6 +144,7 @@ function ShopSetup({ userId, onDone }) {
       <form onSubmit={submit} className="card space-y-3">
         <input className="input" required placeholder="Shop name" value={f.name} onChange={set("name")} />
         <input className="input" required placeholder="Area (e.g. Thane West)" value={f.area} onChange={set("area")} />
+        <input className="input" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} title="6-digit pincode" placeholder="Pincode (6 digits, e.g. 400078)" value={f.pincode} onChange={set("pincode")} />
         <input className="input" required inputMode="tel" placeholder="Shop phone number" value={f.phone} onChange={set("phone")} />
         <textarea className="input" rows={2} required placeholder="Shop address" value={f.address} onChange={set("address")} />
         {err && <p className="text-sm text-red-600">{err}</p>}

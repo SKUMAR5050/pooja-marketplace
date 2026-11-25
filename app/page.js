@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { listShops } from "@/lib/data";
+import { listShops, searchItems } from "@/lib/data";
+import { useCart } from "@/components/CartProvider";
 import { CATEGORIES, CATEGORY_ICONS } from "@/lib/supabase";
 import Mandala from "@/components/Mandala";
 import Diya from "@/components/Diya";
@@ -16,7 +17,13 @@ const STEPS = [
 export default function Home() {
   const [shops, setShops] = useState(null);
   const [error, setError] = useState("");
+  const [mode, setMode] = useState("shop"); // "shop" (pincode / area / shop) or "item"
   const [search, setSearch] = useState("");
+  const [pin, setPin] = useState("");
+  const [results, setResults] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [notice, setNotice] = useState("");
+  const { add, clear } = useCart();
 
   useEffect(() => {
     listShops()
@@ -27,9 +34,41 @@ export default function Home() {
       });
   }, []);
 
+  const term = mode === "shop" ? search.trim().toLowerCase() : "";
   const filtered = (shops || []).filter((s) =>
-    (s.name + " " + (s.area || "")).toLowerCase().includes(search.toLowerCase())
+    (s.name + " " + (s.area || "") + " " + (s.pincode || "")).toLowerCase().includes(term)
   );
+
+  // Item search (waits a moment after typing)
+  useEffect(() => {
+    if (mode !== "item") return;
+    if (search.trim().length < 2) {
+      setResults(null);
+      return;
+    }
+    setSearching(true);
+    const t = setTimeout(() => {
+      searchItems(search, pin)
+        .then(setResults)
+        .catch(() => setResults([]))
+        .finally(() => setSearching(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [mode, search, pin]);
+
+  function addItem(r) {
+    if (add(r.shop, r)) setNotice(`Added ${r.name} from ${r.shop.name}`);
+    else setNotice("other");
+    setPendingItem(r);
+  }
+  const [pendingItem, setPendingItem] = useState(null);
+
+  // group results by item name
+  const groups = {};
+  (results || []).forEach((r) => {
+    const k = r.name.trim().toLowerCase();
+    (groups[k] = groups[k] || { name: r.name, rows: [] }).rows.push(r);
+  });
 
   return (
     <div className="space-y-10">
@@ -47,12 +86,39 @@ export default function Home() {
             Agarbatti, fresh flowers, coconut, diyas and complete puja kits. Pick up with your order
             code, or get <b>free delivery above ₹500</b>.
           </p>
-          <input
-            className="mt-5 w-full max-w-md rounded-xl border-2 border-gold/60 px-4 py-2.5 text-gray-900 shadow-inner outline-none focus:border-gold"
-            placeholder="🔍  Search shop or area (e.g. Thane)"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div className="mt-5 flex w-fit gap-1 rounded-full bg-white/15 p-1 text-sm font-semibold">
+            {[
+              ["shop", "🛕 Find shops"],
+              ["item", "🔍 Search items"],
+            ].map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => { setMode(k); setSearch(""); setNotice(""); }}
+                className={`rounded-full px-4 py-1.5 ${mode === k ? "bg-white text-maroon" : "text-amber-100"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 flex max-w-lg flex-col gap-2 sm:flex-row">
+            <input
+              className="w-full rounded-xl border-2 border-gold/60 px-4 py-2.5 text-gray-900 shadow-inner outline-none focus:border-gold"
+              placeholder={mode === "shop" ? "🔍  Pincode, area or shop (e.g. 400078)" : "🔍  Item name (e.g. agarbatti)"}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {mode === "item" && (
+              <input
+                className="w-full rounded-xl border-2 border-gold/60 px-4 py-2.5 text-gray-900 shadow-inner outline-none focus:border-gold sm:w-40"
+                placeholder="Pincode (optional)"
+                inputMode="numeric"
+                maxLength={6}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+              />
+            )}
+          </div>
           <div className="mt-4 flex flex-wrap gap-2 text-xs text-amber-100">
             <span className="rounded-full bg-white/10 px-3 py-1">🛕 Trusted local shops</span>
             <span className="rounded-full bg-white/10 px-3 py-1">🌼 Fresh flowers</span>
@@ -64,10 +130,68 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ITEM SEARCH RESULTS */}
+      {mode === "item" && (
+        <section>
+          <div className="divider-om mb-4">
+            <h2 className="title text-xl">🔍 Items &amp; prices</h2>
+          </div>
+          {notice === "other" && (
+            <div className="card mb-3 flex flex-wrap items-center gap-2 border-saffron-300 text-sm">
+              Your cart has items from another shop. Start a new cart for {pendingItem?.shop.name}?
+              <button className="btn !py-1" onClick={() => { clear(); add(pendingItem.shop, pendingItem); setNotice(`Added ${pendingItem.name} from ${pendingItem.shop.name}`); }}>Start new cart</button>
+              <button className="btn-outline !py-1" onClick={() => setNotice("")}>Cancel</button>
+            </div>
+          )}
+          {notice && notice !== "other" && (
+            <div className="card mb-3 flex items-center justify-between text-sm text-green-700">
+              ✅ {notice}
+              <Link href="/cart" className="font-semibold text-saffron-700 underline">View cart →</Link>
+            </div>
+          )}
+          {search.trim().length < 2 && <p className="text-gray-500">Type at least 2 letters, such as “agarbatti” or “coconut”.</p>}
+          {searching && <p className="text-gray-500">Searching…</p>}
+          {results && !searching && results.length === 0 && (
+            <div className="card text-gray-600">No shop has this item{pin ? ` in pincode ${pin}` : ""} right now. Try a shorter name.</div>
+          )}
+          <div className="space-y-4">
+            {Object.values(groups).map((g) => (
+              <div key={g.name} className="card">
+                <div className="font-serif text-lg font-bold text-maroon">{g.name}</div>
+                <div className="mt-2 divide-y divide-amber-100">
+                  {g.rows.map((r, i) => (
+                    <div key={r.id} className="flex items-center gap-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <Link href={`/shop/${r.shop.id}`} className="block truncate font-semibold text-gray-800 hover:underline">
+                          {r.shop.name}
+                        </Link>
+                        <div className="text-xs text-gray-500">
+                          📍 {r.shop.area}{r.shop.pincode ? ` · ${r.shop.pincode}` : ""}
+                          {i === 0 && g.rows.length > 1 && <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-green-700">Lowest price</span>}
+                        </div>
+                      </div>
+                      <div className="text-right font-bold text-maroon">
+                        ₹{Number(r.price)}
+                        <div className="text-xs font-normal text-gray-500">/ {r.unit}</div>
+                      </div>
+                      {r.is_kit ? (
+                        <Link href={`/shop/${r.shop.id}`} className="btn-outline !px-3 !py-1 text-sm">View kit</Link>
+                      ) : (
+                        <button className="btn !px-4 !py-1" onClick={() => addItem(r)}>Add</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* SHOPS */}
       <section>
         <div className="divider-om mb-4">
-          <h2 className="title text-xl">🛕 Pooja shops near you</h2>
+          <h2 className="title text-xl">{mode === "item" ? "🛕 All pooja shops" : "🛕 Pooja shops near you"}</h2>
         </div>
         {shops === null && <p className="text-gray-500">Loading shops…</p>}
         {error && <p className="text-red-600">Could not load shops: {error}</p>}
@@ -89,7 +213,7 @@ export default function Home() {
                 </div>
                 <div>
                   <div className="font-serif text-lg font-bold text-maroon">{s.name}</div>
-                  {s.area && <div className="text-sm text-gray-600">📍 {s.area}</div>}
+                  {s.area && <div className="text-sm text-gray-600">📍 {s.area}{s.pincode ? ` · ${s.pincode}` : ""}</div>}
                   {s.address && <div className="text-xs text-gray-500">{s.address}</div>}
                   <div className="mt-2 flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-700">Pickup available</span>
