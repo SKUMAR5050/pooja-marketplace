@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase";
+import { r2, qtyLabel, isLoose } from "@/lib/format";
 
 const NEXT = {
   new: { to: "accepted", label: "Accept order" },
@@ -44,6 +45,11 @@ export default function VendorOrders({ shop }) {
     load();
   }
 
+  async function setPaid(id, paid) {
+    await getSupabase().from("orders").update({ paid }).eq("id", id);
+    load();
+  }
+
   if (error) return <p className="text-red-600">{error}</p>;
   if (!orders) return <p className="text-gray-500">Loading orders…</p>;
 
@@ -66,7 +72,14 @@ export default function VendorOrders({ shop }) {
         <div key={o.id} className="card space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-lg font-bold tracking-wider text-saffron-700">{o.code}</div>
-            <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${BADGE[o.status]}`}>{o.status}</span>
+            <div className="flex items-center gap-2">
+              {o.status !== "cancelled" && (
+                <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${o.paid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-800"}`}>
+                  {o.paid ? "Paid" : "Payment pending"}
+                </span>
+              )}
+              <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${BADGE[o.status]}`}>{o.status}</span>
+            </div>
           </div>
           <div className="text-sm">
             <b>{o.customer_name}</b> ·{" "}
@@ -78,7 +91,7 @@ export default function VendorOrders({ shop }) {
           <ul className="text-sm">
             {o.order_items.map((i) => (
               <li key={i.id}>
-                {i.product_name} × {i.qty} — ₹{i.qty * Number(i.price)}
+                {i.product_name} {isLoose(i.unit) ? `— ${qtyLabel(i.qty, i.unit)}` : `× ${i.qty}`} — ₹{r2(i.qty * Number(i.price))}
                 {i.note && <div className="text-xs text-gray-500">{i.note}</div>}
               </li>
             ))}
@@ -88,6 +101,11 @@ export default function VendorOrders({ shop }) {
             {NEXT[o.status] && (
               <button className="btn !py-1.5" onClick={() => setStatus(o.id, NEXT[o.status].to)}>
                 {NEXT[o.status].label}
+              </button>
+            )}
+            {o.status !== "cancelled" && (
+              <button className="btn-outline !py-1.5" onClick={() => setPaid(o.id, !o.paid)}>
+                {o.paid ? "Mark unpaid" : "Mark paid"}
               </button>
             )}
             {["new", "accepted"].includes(o.status) && (

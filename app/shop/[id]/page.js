@@ -6,16 +6,16 @@ import { getShop, listProducts } from "@/lib/data";
 import { CATEGORY_ICONS } from "@/lib/supabase";
 import { useCart } from "@/components/CartProvider";
 import ItemArt from "@/components/ItemArt";
+import { r3, stepOf, qtyLabel, isLoose, lowStockTag, canAddMore } from "@/lib/format";
 import KitSheet from "@/components/KitSheet";
 
 export default function ShopPage() {
   const { id } = useParams();
-  const { cart, add, setQty, clear, count } = useCart();
+  const { cart, add, setQty, count } = useCart();
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("All");
-  const [message, setMessage] = useState("");
   const [openKit, setOpenKit] = useState(null);
 
   useEffect(() => {
@@ -36,22 +36,15 @@ export default function ShopPage() {
 
   const categories = ["All", ...Array.from(new Set(products.map((p) => p.category)))];
   const shown = category === "All" ? products : products.filter((p) => p.category === category);
-  const qtyOf = (pid) => cart.items.find((x) => x.key === pid)?.qty || 0;
-
-  function warnOtherShop() {
-    setMessage(`Your cart has items from ${cart.shopName}. Start a new cart for ${shop.name}?`);
-  }
+  const lineOf = (pid) => cart.items.find((x) => x.shopId === shop.id && x.id === pid && !x.extraFor);
+  const qtyOf = (pid) => lineOf(pid)?.qty || 0;
 
   function handleAdd(p) {
-    if (!add(shop, p)) warnOtherShop();
+    add(shop, p);
   }
 
   function handleAddKit(kit, chosen) {
-    if (!add(shop, kit)) {
-      setOpenKit(null);
-      warnOtherShop();
-      return;
-    }
+    add(shop, kit);
     chosen.forEach(({ product, qty }) => add(shop, product, { qty, extraFor: kit.id }));
     setOpenKit(null);
   }
@@ -74,14 +67,6 @@ export default function ShopPage() {
           </div>
         </div>
       </div>
-
-      {message && (
-        <div className="card flex flex-wrap items-center gap-3 border-saffron-500 bg-saffron-50">
-          <span className="text-sm">{message}</span>
-          <button className="btn !py-1" onClick={() => { clear(); setMessage(""); }}>Start new cart</button>
-          <button className="btn-outline !py-1" onClick={() => setMessage("")}>Cancel</button>
-        </div>
-      )}
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {categories.map((c) => (
@@ -112,22 +97,25 @@ export default function ShopPage() {
                 )}
               </button>
               <div className="flex flex-1 flex-col gap-1 p-3">
+                {p.brand && <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{p.brand}</div>}
                 <div className="font-semibold leading-tight text-maroon">{p.name}</div>
+                {p.pack_size && <div className="text-xs text-gray-500">{p.pack_size}</div>}
                 <div className="text-sm text-gray-500">
                   <span className="text-base font-bold text-saffron-700">₹{Number(p.price)}</span> / {p.unit}
                 </div>
+                {lowStockTag(p) && <div className="text-xs font-semibold text-red-600">{lowStockTag(p)}</div>}
                 <div className="mt-auto pt-2">
                   {p.is_kit ? (
                     <button className="btn w-full !py-1.5 text-sm" onClick={() => setOpenKit(p)}>
                       View kit &amp; add{q > 0 ? ` (in cart: ${q})` : ""}
                     </button>
                   ) : q === 0 ? (
-                    <button className="btn w-full !py-1.5" onClick={() => handleAdd(p)}>Add</button>
+                    <button className="btn w-full !py-1.5" onClick={() => handleAdd(p)}>Add{isLoose(p.unit) ? ` ${qtyLabel(stepOf(p), p.unit)}` : ""}</button>
                   ) : (
                     <div className="flex items-center justify-between">
-                      <button className="btn-outline !px-3 !py-1" onClick={() => setQty(p.id, q - 1)}>−</button>
-                      <span className="font-bold">{q}</span>
-                      <button className="btn-outline !px-3 !py-1" onClick={() => setQty(p.id, q + 1)}>+</button>
+                      <button className="btn-outline !px-3 !py-1" onClick={() => setQty(lineOf(p.id).key, r3(q - stepOf(p)))}>−</button>
+                      <span className="text-sm font-bold">{qtyLabel(q, p.unit)}</span>
+                      <button className="btn-outline !px-3 !py-1 disabled:opacity-40" disabled={!canAddMore(p, q)} onClick={() => setQty(lineOf(p.id).key, r3(q + stepOf(p)))}>+</button>
                     </div>
                   )}
                 </div>
@@ -137,9 +125,9 @@ export default function ShopPage() {
         })}
       </div>
 
-      {count > 0 && cart.shopId === shop.id && (
+      {count > 0 && (
         <div className="sticky bottom-4 flex justify-center">
-          <Link href="/cart" className="btn !px-6 !py-3 shadow-xl">🛒 View cart ({count} items) →</Link>
+          <Link href="/cart" className="btn !px-6 !py-3 shadow-xl">🛒 View cart ({count} item{count > 1 ? "s" : ""}) →</Link>
         </div>
       )}
 

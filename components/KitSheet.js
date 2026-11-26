@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import ItemArt from "./ItemArt";
+import { r2, r3, stepOf, qtyLabel, fullName, canAddMore } from "@/lib/format";
 
 // Pop-up that shows what is inside a kit and lets the customer add extra items.
 export default function KitSheet({ kit, items, onClose, onAdd }) {
@@ -16,14 +17,15 @@ export default function KitSheet({ kit, items, onClose, onAdd }) {
 
   const extraList = items.filter((p) => !p.is_kit && p.id !== kit.id);
   const extrasTotal = extraList.reduce((n, p) => n + (extras[p.id] || 0) * Number(p.price), 0);
-  const total = Number(kit.price) + extrasTotal;
-  const extraCount = Object.values(extras).reduce((n, q) => n + q, 0);
+  const extrasTotalR = r2(extrasTotal);
+  const total = r2(Number(kit.price) + extrasTotal);
+  const extraCount = Object.keys(extras).length;
 
-  function change(id, d) {
+  function change(p, dir) {
     setExtras((e) => {
-      const q = Math.max(0, (e[id] || 0) + d);
-      const next = { ...e, [id]: q };
-      if (q === 0) delete next[id];
+      const q = Math.max(0, r3((e[p.id] || 0) + dir * stepOf(p)));
+      const next = { ...e, [p.id]: q };
+      if (q === 0) delete next[p.id];
       return next;
     });
   }
@@ -79,16 +81,16 @@ export default function KitSheet({ kit, items, onClose, onAdd }) {
                     <div key={p.id} className="flex items-center gap-3 rounded-xl bg-white p-2 shadow-sm">
                       <ItemArt product={p} className="h-12 w-12 shrink-0 overflow-hidden rounded-lg" />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-maroon">{p.name}</div>
+                        <div className="truncate text-sm font-semibold text-maroon">{fullName(p)}</div>
                         <div className="text-xs text-gray-500">₹{Number(p.price)} / {p.unit}</div>
                       </div>
                       {q === 0 ? (
-                        <button className="btn-outline !px-3 !py-1 text-sm" onClick={() => change(p.id, 1)}>Add</button>
+                        <button className="btn-outline !px-3 !py-1 text-sm" onClick={() => change(p, 1)}>Add</button>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <button className="btn-outline !px-2.5 !py-0.5" onClick={() => change(p.id, -1)}>−</button>
-                          <span className="w-4 text-center font-bold">{q}</span>
-                          <button className="btn-outline !px-2.5 !py-0.5" onClick={() => change(p.id, 1)}>+</button>
+                          <button className="btn-outline !px-2.5 !py-0.5" onClick={() => change(p, -1)}>−</button>
+                          <span className="min-w-[1rem] text-center text-sm font-bold">{qtyLabel(q, p.unit)}</span>
+                          <button className="btn-outline !px-2.5 !py-0.5 disabled:opacity-40" disabled={!canAddMore(p, q)} onClick={() => change(p, 1)}>+</button>
                         </div>
                       )}
                     </div>
@@ -103,7 +105,7 @@ export default function KitSheet({ kit, items, onClose, onAdd }) {
           {extraCount > 0 && (
             <div className="mb-2 flex justify-between text-sm text-gray-600">
               <span>Kit ₹{Number(kit.price)} + {extraCount} extra item{extraCount > 1 ? "s" : ""}</span>
-              <span>+ ₹{extrasTotal}</span>
+              <span>+ ₹{extrasTotalR}</span>
             </div>
           )}
           <button className="btn w-full !py-3 text-lg" onClick={submit}>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { listShops, searchItems } from "@/lib/data";
 import { useCart } from "@/components/CartProvider";
 import { CATEGORIES, CATEGORY_ICONS } from "@/lib/supabase";
+import { stepOf, qtyLabel, isLoose, lowStockTag, fullName } from "@/lib/format";
 import Mandala from "@/components/Mandala";
 import Diya from "@/components/Diya";
 import Toran from "@/components/Toran";
@@ -23,7 +24,7 @@ export default function Home() {
   const [results, setResults] = useState(null);
   const [searching, setSearching] = useState(false);
   const [notice, setNotice] = useState("");
-  const { add, clear } = useCart();
+  const { add } = useCart();
 
   useEffect(() => {
     listShops()
@@ -57,11 +58,9 @@ export default function Home() {
   }, [mode, search, pin]);
 
   function addItem(r) {
-    if (add(r.shop, r)) setNotice(`Added ${r.name} from ${r.shop.name}`);
-    else setNotice("other");
-    setPendingItem(r);
+    add(r.shop, r);
+    setNotice(`Added ${fullName(r)} from ${r.shop.name}`);
   }
-  const [pendingItem, setPendingItem] = useState(null);
 
   // group results by item name
   const groups = {};
@@ -136,14 +135,7 @@ export default function Home() {
           <div className="divider-om mb-4">
             <h2 className="title text-xl">🔍 Items &amp; prices</h2>
           </div>
-          {notice === "other" && (
-            <div className="card mb-3 flex flex-wrap items-center gap-2 border-saffron-300 text-sm">
-              Your cart has items from another shop. Start a new cart for {pendingItem?.shop.name}?
-              <button className="btn !py-1" onClick={() => { clear(); add(pendingItem.shop, pendingItem); setNotice(`Added ${pendingItem.name} from ${pendingItem.shop.name}`); }}>Start new cart</button>
-              <button className="btn-outline !py-1" onClick={() => setNotice("")}>Cancel</button>
-            </div>
-          )}
-          {notice && notice !== "other" && (
+          {notice && (
             <div className="card mb-3 flex items-center justify-between text-sm text-green-700">
               ✅ {notice}
               <Link href="/cart" className="font-semibold text-saffron-700 underline">View cart →</Link>
@@ -169,6 +161,10 @@ export default function Home() {
                           📍 {r.shop.area}{r.shop.pincode ? ` · ${r.shop.pincode}` : ""}
                           {i === 0 && g.rows.length > 1 && <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-green-700">Lowest price</span>}
                         </div>
+                        {(r.brand || r.pack_size) && (
+                          <div className="text-xs text-gray-600">{[r.brand, r.pack_size].filter(Boolean).join(" · ")}</div>
+                        )}
+                        {lowStockTag(r) && <div className="text-xs font-semibold text-red-600">{lowStockTag(r)}</div>}
                       </div>
                       <div className="text-right font-bold text-maroon">
                         ₹{Number(r.price)}
@@ -177,7 +173,7 @@ export default function Home() {
                       {r.is_kit ? (
                         <Link href={`/shop/${r.shop.id}`} className="btn-outline !px-3 !py-1 text-sm">View kit</Link>
                       ) : (
-                        <button className="btn !px-4 !py-1" onClick={() => addItem(r)}>Add</button>
+                        <button className="btn !px-4 !py-1" onClick={() => addItem(r)}>Add{isLoose(r.unit) ? ` ${qtyLabel(stepOf(r), r.unit)}` : ""}</button>
                       )}
                     </div>
                   ))}

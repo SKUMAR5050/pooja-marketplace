@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getSupabase, isConfigured } from "@/lib/supabase";
 import VendorOrders from "@/components/VendorOrders";
 import VendorProducts from "@/components/VendorProducts";
+import VendorEarnings from "@/components/VendorEarnings";
 import DemoVendor from "@/components/DemoVendor";
 
 export default function VendorPage() {
@@ -61,6 +62,7 @@ export default function VendorPage() {
         {[
           ["orders", "Orders"],
           ["products", "My items"],
+          ["earnings", "Earnings"],
         ].map(([k, label]) => (
           <button
             key={k}
@@ -74,7 +76,9 @@ export default function VendorPage() {
         ))}
       </div>
 
-      {tab === "orders" ? <VendorOrders shop={shop} /> : <VendorProducts shop={shop} />}
+      {tab === "orders" && <VendorOrders shop={shop} />}
+      {tab === "products" && <VendorProducts shop={shop} />}
+      {tab === "earnings" && <VendorEarnings shop={shop} onShopChange={setShop} />}
     </div>
   );
 }
@@ -215,7 +219,7 @@ function NewPassword({ onDone }) {
 }
 
 function ShopSetup({ userId, onDone }) {
-  const [f, setF] = useState({ name: "", area: "", pincode: "", phone: "", address: "" });
+  const [f, setF] = useState({ name: "", area: "", pincode: "", phone: "", address: "", upi_id: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -226,7 +230,7 @@ function ShopSetup({ userId, onDone }) {
     setErr("");
     const { data, error } = await getSupabase()
       .from("shops")
-      .insert({ ...f, owner_id: userId })
+      .insert({ ...f, upi_id: f.upi_id.trim() || null, owner_id: userId })
       .select()
       .single();
     setBusy(false);
@@ -242,6 +246,7 @@ function ShopSetup({ userId, onDone }) {
         <input className="input" required placeholder="Area (e.g. Thane West)" value={f.area} onChange={set("area")} />
         <input className="input" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} title="6-digit pincode" placeholder="Pincode (6 digits, e.g. 400078)" value={f.pincode} onChange={set("pincode")} />
         <input className="input" required inputMode="tel" placeholder="Shop phone number" value={f.phone} onChange={set("phone")} />
+        <input className="input" placeholder="Shop UPI ID to receive payments (e.g. name@okbank), optional" value={f.upi_id} onChange={set("upi_id")} />
         <textarea className="input" rows={2} required placeholder="Shop address" value={f.address} onChange={set("address")} />
         {err && <p className="text-sm text-red-600">{err}</p>}
         <button className="btn w-full" disabled={busy}>{busy ? "Saving…" : "Create my shop"}</button>

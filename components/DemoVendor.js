@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { r2, qtyLabel, isLoose } from "@/lib/format";
 import { DEMO_SHOPS, demoProducts, loadOrders, saveOrders, getOutOfStock, setOutOfStock } from "@/lib/demo";
 
 const NEXT = {
@@ -40,6 +41,12 @@ export default function DemoVendor() {
 
   function setStatus(code, status) {
     const next = loadOrders().map((o) => (o.code === code ? { ...o, status } : o));
+    saveOrders(next);
+    setOrders(next);
+  }
+
+  function setPaid(code, paid) {
+    const next = loadOrders().map((o) => (o.code === code ? { ...o, paid } : o));
     saveOrders(next);
     setOrders(next);
   }
@@ -93,7 +100,14 @@ export default function DemoVendor() {
             <div key={o.code} className="card space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="font-serif text-lg font-bold tracking-wider text-saffron-700">{o.code}</div>
-                <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${BADGE[o.status]}`}>{o.status}</span>
+                <div className="flex items-center gap-2">
+                  {o.status !== "cancelled" && (
+                    <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${o.paid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-800"}`}>
+                      {o.paid ? "Paid" : "Payment pending"}
+                    </span>
+                  )}
+                  <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${BADGE[o.status]}`}>{o.status}</span>
+                </div>
               </div>
               <div className="text-sm"><b>{o.customer_name}</b> · {o.customer_phone}</div>
               <div className="text-sm text-gray-600">
@@ -102,7 +116,7 @@ export default function DemoVendor() {
               <ul className="text-sm">
                 {o.items.map((i, idx) => (
                   <li key={idx}>
-                    {i.name} × {i.qty} — ₹{i.qty * Number(i.price)}
+                    {i.name} {isLoose(i.unit) ? `— ${qtyLabel(i.qty, i.unit)}` : `× ${i.qty}`} — ₹{r2(i.qty * Number(i.price))}
                     {i.note && <div className="text-xs text-gray-500">{i.note}</div>}
                   </li>
                 ))}
@@ -111,6 +125,9 @@ export default function DemoVendor() {
               <div className="flex gap-2">
                 {NEXT[o.status] && (
                   <button className="btn !py-1.5" onClick={() => setStatus(o.code, NEXT[o.status].to)}>{NEXT[o.status].label}</button>
+                )}
+                {o.status !== "cancelled" && (
+                  <button className="btn-outline !py-1.5" onClick={() => setPaid(o.code, !o.paid)}>{o.paid ? "Mark unpaid" : "Mark paid"}</button>
                 )}
                 {["new", "accepted"].includes(o.status) && (
                   <button className="btn-outline !py-1.5" onClick={() => setStatus(o.code, "cancelled")}>Cancel</button>
