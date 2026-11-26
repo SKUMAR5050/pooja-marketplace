@@ -4,7 +4,21 @@ import { getSupabase, CATEGORIES, STARTER_PRODUCTS, COUNT_UNITS, LOOSE_UNITS, DE
 import { isLoose, r3, stepOf, fullName } from "@/lib/format";
 import BarcodeScanner from "./BarcodeScanner";
 
-const EMPTY = { name: "", brand: "", pack_size: "", barcode: "", category: CATEGORIES[0], price: "", unit: "piece", otherUnit: "", step: "1", stock: "" };
+const PACK_UNITS = ["g", "kg", "ml", "l", "cm", "m", "pcs", "sticks"];
+const EMPTY = { name: "", brand: "", packNum: "", packUnit: "g", otherCat: "", barcode: "", category: CATEGORIES[0], price: "", unit: "piece", otherUnit: "", step: "1", stock: "" };
+
+function packSize(f) {
+  const n = String(f.packNum || "").trim();
+  if (!n) return "";
+  return f.packUnit ? `${n} ${f.packUnit}` : n;
+}
+
+function parsePack(text) {
+  const t = String(text || "").trim();
+  const m = t.match(/^([\d.]+)\s*([a-zA-Z]+)$/);
+  if (m && PACK_UNITS.includes(m[2].toLowerCase())) return { num: m[1], unit: m[2].toLowerCase() };
+  return { num: t, unit: "" };
+}
 
 export default function VendorProducts({ shop }) {
   const [products, setProducts] = useState(null);
@@ -65,7 +79,7 @@ export default function VendorProducts({ shop }) {
         barcode: bc,
         name: cur.name || hit.name || "",
         brand: cur.brand || hit.brand || "",
-        pack_size: cur.pack_size || hit.pack_size || "",
+        ...(cur.packNum ? {} : (() => { const pk = parsePack(hit.pack_size); return { packNum: pk.num, packUnit: pk.unit }; })()),
         category: CATEGORIES.includes(hit.category) ? hit.category : cur.category,
         unit: known ? hit.unit : cur.unit,
         step: known ? String(hit.step || 1) : cur.step,
@@ -81,9 +95,9 @@ export default function VendorProducts({ shop }) {
     const row = {
       name: f.name.trim(),
       brand: f.brand.trim() || null,
-      pack_size: f.pack_size.trim() || null,
+      pack_size: packSize(f) || null,
       barcode: f.barcode.trim() || null,
-      category: f.category,
+      category: f.category === "__other__" ? f.otherCat.trim() || "Other" : f.category,
       price: Number(f.price),
       unit,
       step: loose ? Number(f.step) || DEFAULT_STEP[unit] || 1 : 1,
@@ -95,7 +109,7 @@ export default function VendorProducts({ shop }) {
     setBusy(false);
     if (error) setErr(error.message);
     else {
-      setF({ ...EMPTY, category: f.category });
+      setF({ ...EMPTY, category: f.category, otherCat: f.otherCat });
       setEditId(null);
       setInfo("");
       load();
@@ -103,15 +117,19 @@ export default function VendorProducts({ shop }) {
   }
 
   function startEdit(p) {
+    const pk = parsePack(p.pack_size);
+    const catKnown = CATEGORIES.includes(p.category);
     const known = COUNT_UNITS.includes(p.unit) || LOOSE_UNITS.includes(p.unit);
     setEditId(p.id);
     setInfo("");
     setF({
       name: p.name || "",
       brand: p.brand || "",
-      pack_size: p.pack_size || "",
+      packNum: pk.num,
+      packUnit: pk.unit,
+      otherCat: catKnown ? "" : p.category,
       barcode: p.barcode || "",
-      category: p.category,
+      category: catKnown ? p.category : "__other__",
       price: String(Number(p.price)),
       unit: known ? p.unit : "other",
       otherUnit: known ? "" : p.unit,
@@ -194,11 +212,21 @@ export default function VendorProducts({ shop }) {
         <input className="input" required placeholder="Item name (e.g. Agarbatti)" value={f.name} onChange={set("name")} />
         <div className="grid grid-cols-2 gap-3">
           <input className="input" placeholder="Brand (optional)" value={f.brand} onChange={set("brand")} />
-          <input className="input" placeholder="Pack size (e.g. 100 sticks)" value={f.pack_size} onChange={set("pack_size")} />
+          <div className="flex gap-2">
+            <input className="input" inputMode="decimal" placeholder="Pack size (e.g. 250)" value={f.packNum} onChange={set("packNum")} />
+            <select className="input !w-28 shrink-0" value={f.packUnit} onChange={set("packUnit")}>
+              {PACK_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+              <option value="">(none)</option>
+            </select>
+          </div>
         </div>
         <select className="input" value={f.category} onChange={set("category")}>
           {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+          <option value="__other__">Other (type your own)…</option>
         </select>
+        {f.category === "__other__" && (
+          <input className="input" required placeholder="Type the category name (e.g. Rudraksha)" value={f.otherCat} onChange={set("otherCat")} />
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <select className="input" value={f.unit} onChange={pickUnit}>

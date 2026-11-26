@@ -6,7 +6,7 @@ import { getShop, listProducts } from "@/lib/data";
 import { CATEGORY_ICONS } from "@/lib/supabase";
 import { useCart } from "@/components/CartProvider";
 import ItemArt from "@/components/ItemArt";
-import { r3, stepOf, qtyLabel, isLoose, lowStockTag, canAddMore } from "@/lib/format";
+import { r3, stepOf, qtyLabel, isLoose, lowStockTag, canAddMore, perHint } from "@/lib/format";
 import KitSheet from "@/components/KitSheet";
 
 export default function ShopPage() {
@@ -103,6 +103,7 @@ export default function ShopPage() {
                 <div className="text-sm text-gray-500">
                   <span className="text-base font-bold text-saffron-700">₹{Number(p.price)}</span> / {p.unit}
                 </div>
+                {perHint(p) && <div className="text-xs text-gray-500">{perHint(p)}</div>}
                 {lowStockTag(p) && <div className="text-xs font-semibold text-red-600">{lowStockTag(p)}</div>}
                 <div className="mt-auto pt-2">
                   {p.is_kit ? (

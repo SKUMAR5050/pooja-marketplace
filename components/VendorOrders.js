@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase";
-import { r2, qtyLabel, isLoose } from "@/lib/format";
+import { r2, qtyLabel, isLoose, mapsLink } from "@/lib/format";
 
 const NEXT = {
   new: { to: "accepted", label: "Accept order" },
@@ -86,7 +86,12 @@ export default function VendorOrders({ shop }) {
             <a className="text-saffron-700 underline" href={`tel:${o.customer_phone}`}>{o.customer_phone}</a>
           </div>
           <div className="text-sm text-gray-600">
-            {o.fulfilment === "delivery" ? `🚚 Deliver to: ${o.address}` : "🏪 Customer will pick up (check the code)"}
+            {o.fulfilment === "delivery" ? (
+              <>
+                <div className="whitespace-pre-line">🚚 Deliver to: {o.address}</div>
+                <a className="font-semibold text-saffron-700 underline" href={mapsLink(o.address)} target="_blank" rel="noreferrer">📍 Open in Google Maps</a>
+              </>
+            ) : "🏪 Customer will pick up (check the code)"}
           </div>
           <ul className="text-sm">
             {o.order_items.map((i) => (

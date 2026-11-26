@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { r2, qtyLabel, isLoose } from "@/lib/format";
+import { r2, qtyLabel, isLoose, mapsLink } from "@/lib/format";
 import { DEMO_SHOPS, demoProducts, loadOrders, saveOrders, getOutOfStock, setOutOfStock } from "@/lib/demo";
 
 const NEXT = {
@@ -111,7 +111,12 @@ export default function DemoVendor() {
               </div>
               <div className="text-sm"><b>{o.customer_name}</b> · {o.customer_phone}</div>
               <div className="text-sm text-gray-600">
-                {o.fulfilment === "delivery" ? `🚚 Deliver to: ${o.address}` : "🛕 Customer will pick up (check the code)"}
+                {o.fulfilment === "delivery" ? (
+                  <>
+                    <div className="whitespace-pre-line">🚚 Deliver to: {o.address}</div>
+                    <a className="font-semibold text-saffron-700 underline" href={mapsLink(o.address)} target="_blank" rel="noreferrer">📍 Open in Google Maps</a>
+                  </>
+                ) : "🛕 Customer will pick up (check the code)"}
               </div>
               <ul className="text-sm">
                 {o.items.map((i, idx) => (

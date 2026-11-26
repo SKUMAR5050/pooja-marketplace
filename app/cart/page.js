@@ -14,7 +14,8 @@ export default function CartPage() {
   const { cart, groups, setQty, removeShop, clear, subtotal, ready } = useCart();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [addr, setAddr] = useState({ house: "", street: "", landmark: "", pin: "" });
+  const setA = (k) => (e) => setAddr({ ...addr, [k]: e.target.value });
   const [modes, setModes] = useState({}); // shopId -> "pickup" | "delivery"
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -44,10 +45,19 @@ export default function CartPage() {
       setError("Please enter a valid phone number.");
       return;
     }
-    if (anyDelivery && !address.trim()) {
-      setError("Please enter your delivery address.");
-      return;
+    if (anyDelivery) {
+      if (!addr.house.trim() || !addr.street.trim() || !addr.landmark.trim()) {
+        setError("Please fill house / flat, street / area and a landmark for delivery.");
+        return;
+      }
+      if (!/^[0-9]{6}$/.test(addr.pin.trim())) {
+        setError("Please enter a 6-digit pincode for delivery.");
+        return;
+      }
     }
+    const address = anyDelivery
+      ? `${addr.house.trim()}, ${addr.street.trim()}\nLandmark: ${addr.landmark.trim()}\nPincode: ${addr.pin.trim()}`
+      : "";
     setBusy(true);
     const codes = [...placed];
     for (const g of groups) {
@@ -147,7 +157,13 @@ export default function CartPage() {
         <input className="input" required placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
         <input className="input" required inputMode="tel" placeholder="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
         {anyDelivery && (
-          <textarea className="input" rows={3} placeholder="Full delivery address" value={address} onChange={(e) => setAddress(e.target.value)} />
+          <div className="space-y-3 rounded-xl border-2 border-amber-200 p-3">
+            <div className="text-sm font-semibold text-maroon">🚚 Delivery address</div>
+            <input className="input" required placeholder="House / flat no. and building name" value={addr.house} onChange={setA("house")} />
+            <input className="input" required placeholder="Street / area" value={addr.street} onChange={setA("street")} />
+            <input className="input" required placeholder="Landmark (e.g. near Ganesh temple)" value={addr.landmark} onChange={setA("landmark")} />
+            <input className="input" required inputMode="numeric" maxLength={6} placeholder="Pincode (6 digits)" value={addr.pin} onChange={(e) => setAddr({ ...addr, pin: e.target.value.replace(/\D/g, "") })} />
+          </div>
         )}
         <p className="text-xs text-gray-500">
           You pay each shop directly: scan the shop’s UPI QR on the next page, or pay cash at pickup / on delivery.
